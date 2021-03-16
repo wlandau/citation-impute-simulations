@@ -30,7 +30,8 @@ target_estimates <- tar_map(
       c(
         "full_svds",
         "zero_imputed_svds",
-        "symmetric_svd"
+        "symmetric_svd",
+        "cite_impute"
       )
     )
   ),
@@ -54,11 +55,11 @@ target_combined <- tar_combine(
   command = dplyr::bind_rows(!!!.x, .id = "estimator")
 )
 
-num_reps <- 10
+num_reps <- 30
 
 list(
 
-  tar_target(n, c(100, 250, 500, 1000, 2500)),
+  tar_target(n, c(100, 250, 500)), #, 1000, 2500)),
 
   tar_target(k, c(2, 5, 10)),
 

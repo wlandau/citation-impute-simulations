@@ -26,6 +26,11 @@ symmetric_svd <- function(A, k) {
   svds((A_obs + t(A_obs)) / 2, k)
 }
 
+cite_impute <- function(A, k) {
+  A_obs <- as(triu(A) * 1, "dgCMatrix")
+  citation_impute(A_obs, rank = k, max_iter = 20)
+}
+
 subspace_loss <- function(svd_true, svd_estimate, params) {
   tibble(
     u_loss = norm(svd_estimate$u - svd_true$u, type = "F") / 2,
