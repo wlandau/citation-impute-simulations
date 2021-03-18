@@ -27,13 +27,24 @@ source(here::here("R/functions.R"))
 library(logger)
 log_threshold(WARN) # hack to hide citation_impute() output
 
+
+models_chr <- paste0("model", 1:2)
+
+estimators_chr <- c(
+  "full_svds",
+  # "zero_imputed_svds",
+  "symmetric_svd" #,
+  # "cite_impute"
+)
+
+model_syms <- rlang::syms(models_chr)
+estimator_syms <- rlang::syms(estimators_chr)
+
 target_models <- tar_map(
 
   unlist = FALSE,
 
-  values = tibble::tibble(
-    model = rlang::syms(paste0("model", 1:2))
-  ),
+  values = list(model = model_syms),
 
   tar_target(
     distribution,
@@ -53,44 +64,31 @@ target_models <- tar_map(
     svd,
     svds(distribution),
     pattern = map(population)
-  )
-)
-
-
-target_estimates <- tar_map(
-
-  unlist = FALSE,
-
-  values = tibble::tibble(
-
-    estimator = rlang::syms(
-      c(
-        "full_svds",
-        # "zero_imputed_svds",
-        "symmetric_svd" #,
-        # "cite_impute"
-      )
-    )
   ),
 
-  tar_target(
-    estimate,
-    purrr::map(realizations, ~estimator(.x, k = parameters$k)),
-    pattern = map(realizations, parameters)
+  tar_map(
+
+    values = list(estimator = estimator_syms),
+
+    tar_target(
+      estimate,
+      purrr::map(realizations, ~estimator(.x, k = parameters$k)),
+      pattern = map(realizations, parameters)
+    ),
+
+    tar_target(
+      loss,
+      purrr::map_dfr(estimate, ~loss_helper(svd, .x, params = parameters)),
+      pattern = map(svd, estimate, parameters)
+    )
   )
-
-  # tar_target(
-  #   loss,
-  #   purrr::map_dfr(estimate, ~loss_helper(population_svd, .x, params = parameters)),
-  #   pattern = map(population_svd, estimate, parameters)
-  # )
 )
-
-target_combined <- tar_combine(
-  combined_losses,
-  target_estimates[2],
-  command = dplyr::bind_rows(!!!.x, .id = "estimator")
-)
+#
+# target_combined <- tar_combine(
+#   combined_losses,
+#   target_estimates[2],
+#   command = dplyr::bind_rows(!!!.x, .id = "estimator")
+# )
 
 list(
 
@@ -117,9 +115,9 @@ list(
   #   format = "file"
   # ),
 
-  target_models,
+  target_models
 
-  target_estimates
+  #target_estimates
 #
 #   target_combined,
 #
