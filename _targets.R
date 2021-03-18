@@ -1,5 +1,7 @@
 library(targets)
 library(tarchetypes)
+library(magrittr)
+library(glue)
 
 options(
   tidyverse.quiet = TRUE,
@@ -27,12 +29,24 @@ source(here::here("R/functions.R"))
 library(logger)
 log_threshold(WARN) # hack to hide citation_impute() output
 
+models_chr <- paste0("model", 1:2)
+
+estimators_chr <- c(
+  "full_svds",
+  # "zero_imputed_svds",
+  "symmetric_svd" #,
+  # "cite_impute"
+)
+
+model_syms <- rlang::syms(models_chr)
+estimator_syms <- rlang::syms(estimators_chr)
+
 target_models <- tar_map(
 
   unlist = FALSE,
 
   values = tibble::tibble(
-    model = rlang::syms(paste0("model", 1:2))
+    model = model_syms
   ),
 
   tar_target(
@@ -57,33 +71,46 @@ target_models <- tar_map(
 )
 
 
-target_estimates <- tar_map(
+estimate_values <- tidyr::expand_grid(
+  model = models_chr,
+  estimator = estimators_chr,
+) %>%
+  dplyr::mutate(
+    estimate = glue("estimates_{model}_{estimator}"),
+    data = glue("realizations_{model}")
+  ) %>%
+  dplyr::mutate_all(rlang::syms)
 
-  unlist = FALSE,
-
-  values = tibble::tibble(
-
-    estimator = rlang::syms(
-      c(
-        "full_svds",
-        # "zero_imputed_svds",
-        "symmetric_svd" #,
-        # "cite_impute"
-      )
-    )
-  ),
+target_estimates <- tar_eval(
+  values = estimate_values,
 
   tar_target(
     estimate,
-    purrr::map(realizations, ~estimator(.x, k = parameters$k)),
-    pattern = map(realizations, parameters)
+    purrr::map(data, ~estimator(.x, k = parameters$k)),
+    pattern = map(data)
   )
+)
 
-  # tar_target(
-  #   loss,
-  #   purrr::map_dfr(estimate, ~loss_helper(population_svd, .x, params = parameters)),
-  #   pattern = map(population_svd, estimate, parameters)
-  # )
+loss_values <- tidyr::expand_grid(
+  model = models_chr,
+  estimator = estimators_chr,
+) %>%
+  dplyr::mutate(
+    svd = glue("svd_{model}_{estimator}"),
+    estimate = glue("estimates_{model}_{estimator}"),
+    loss = glue("loss_{estimator}_{model}")
+  ) %>%
+  dplyr::mutate_all(rlang::syms)
+
+target_loss <- tar_eval(
+
+  values = loss_values,
+
+  tar_target(
+    loss,
+    purrr::map_dfr(estimate, ~loss_helper(svd, .x, params = parameters)),
+    pattern = map(svd, estimate, parameters)
+  )
 )
 
 target_combined <- tar_combine(
@@ -108,8 +135,6 @@ list(
     pattern = cross(n, k, expected_degree)
   ),
 
-
-
   # tar_target(
   #   expectation_plots,
   #   plot_expectation(population_graph, parameters),
@@ -119,7 +144,9 @@ list(
 
   target_models,
 
-  target_estimates
+  target_estimates,
+
+  target_loss
 #
 #   target_combined,
 #
