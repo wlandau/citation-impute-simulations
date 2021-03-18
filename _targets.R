@@ -63,7 +63,7 @@ target_models <- tar_map(
   tar_target(
     svd,
     svds(distribution),
-    pattern = map(population)
+    pattern = map(distribution)
   ),
 
   tar_map(
