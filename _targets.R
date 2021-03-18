@@ -73,12 +73,11 @@ target_estimates <- tar_map(
     )
   ),
 
-
-tar_target(
-  estimate,
-  purrr::map(realizations, ~estimator(.x, k = parameters$k)),
-  pattern = map(realizations, parameters)
-)
+  tar_target(
+    estimate,
+    purrr::map(realizations, ~estimator(.x, k = parameters$k)),
+    pattern = map(realizations, parameters)
+  )
 
   # tar_target(
   #   loss,
@@ -117,8 +116,6 @@ list(
   #   pattern = map(population_graph, parameters),
   #   format = "file"
   # ),
-
-
 
   target_models,
 
